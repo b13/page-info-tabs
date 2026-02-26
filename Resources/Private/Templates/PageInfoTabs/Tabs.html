@@ -31,7 +31,8 @@
 				class="tab-pane{f:if(condition: i.isFirst, then: ' active')}"
 				id="page-info-tab-{section.identifier}"
 			>
-				<f:format.raw>{section.content}</f:format.raw>
+				<!-- page-info-tabs key: {section.identifier} -->
+			<f:format.raw>{section.content}</f:format.raw>
 			</div>
 		</f:for>
 	</div>

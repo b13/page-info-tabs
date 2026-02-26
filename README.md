@@ -63,6 +63,29 @@ $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['blog'
 
 Lower priority = leftmost tab.
 
+## Finding the Extension Key
+
+Each tab panel includes an HTML comment with the detected key. Inspect
+the tab content in your browser's developer tools to find it:
+
+```html
+<!-- page-info-tabs key: view_tracker -->
+```
+
+Use that key in your label and priority configuration. The key is
+auto-detected from HTML patterns in the following order:
+
+1. `data-extension="my_ext"` attribute (most reliable — extensions can
+   add this explicitly)
+2. CSS classes like `my-ext-pageheader` or `my-ext-widget`
+3. TYPO3 convention classes: `tx-my-ext` or `tx_my_ext`
+4. b13 JS hooks: `bJS_txMyExt`
+5. `EXT:my_ext/` references in `src`/`href` attributes
+
+If auto-detection produces an unexpected key, you can either configure a
+label for that key directly, or ask the extension author to add a
+`data-extension` attribute to their HTML output.
+
 ## Explicit Section Registration (Optional)
 
 Extensions that want full control over their tab label, priority, and
