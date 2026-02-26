@@ -25,6 +25,11 @@ final class LabelResolver
      */
     public function detectExtensionKey(string $content): ?string
     {
+        // Explicit data-extension attribute (highest priority)
+        if (preg_match('/data-extension=["\']([a-z_-]+)["\']/i', $content, $m)) {
+            return $this->normalizeKey($m[1]);
+        }
+
         // Extension-specific CSS class prefixes: "blog-pageheader" → "blog"
         if (preg_match('/class=["\'][^"\']*\b([a-z][a-z0-9]*)-(?:pageheader|header|module|widget)\b/i', $content, $m)) {
             return $this->normalizeKey($m[1]);
@@ -43,11 +48,6 @@ final class LabelResolver
         // EXT: references in src/href attributes
         if (preg_match('/(?:src|href)=["\'][^"\']*EXT:([a-z_]+)\//i', $content, $m)) {
             return $m[1];
-        }
-
-        // data-extension attribute
-        if (preg_match('/data-extension=["\']([a-z_-]+)["\']/i', $content, $m)) {
-            return $this->normalizeKey($m[1]);
         }
 
         return null;
