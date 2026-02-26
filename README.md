@@ -126,7 +126,7 @@ GPL-2.0-or-later — see the [LICENSE](LICENSE) file for details.
 
 ## Background, authors & maintenance
 
-This extension was created by [b13 GmbH, Stuttgart](https://b13.com).
+This extension was created in 2026 by David Steeb for [b13 GmbH, Stuttgart](https://b13.com).
 
 [Find more TYPO3 extensions we have developed](https://b13.com/useful-typo3-extensions-from-b13-to-you) that help us deliver value in client projects. As part of our work,
 we focus on testing and best practices to ensure long-term performance, reliability, and results in all our code.
