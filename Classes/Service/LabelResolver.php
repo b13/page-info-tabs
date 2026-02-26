@@ -14,19 +14,6 @@ namespace B13\PageInfoTabs\Service;
 
 final class LabelResolver
 {
-    /** @var array<string, string> */
-    private readonly array $labels;
-
-    /** @var array<string, int> */
-    private readonly array $priorities;
-
-    public function __construct()
-    {
-        $config = $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs'] ?? [];
-        $this->labels = $config['labels'] ?? [];
-        $this->priorities = $config['priorities'] ?? [];
-    }
-
     /**
      * Detect the TYPO3 extension key from rendered HTML content.
      *
@@ -68,8 +55,9 @@ final class LabelResolver
 
     public function resolveLabel(?string $extensionKey): string
     {
-        if ($extensionKey !== null && isset($this->labels[$extensionKey])) {
-            return $this->labels[$extensionKey];
+        $labels = $this->getConfig()['labels'] ?? [];
+        if ($extensionKey !== null && isset($labels[$extensionKey])) {
+            return $labels[$extensionKey];
         }
         if ($extensionKey !== null) {
             return ucwords(str_replace('_', ' ', $extensionKey));
@@ -79,10 +67,20 @@ final class LabelResolver
 
     public function resolvePriority(?string $extensionKey, int $default): int
     {
-        if ($extensionKey !== null && isset($this->priorities[$extensionKey])) {
-            return $this->priorities[$extensionKey];
+        $priorities = $this->getConfig()['priorities'] ?? [];
+        if ($extensionKey !== null && isset($priorities[$extensionKey])) {
+            return (int)$priorities[$extensionKey];
         }
         return $default;
+    }
+
+    /**
+     * Read config at call time so ext_localconf.php values are available.
+     * @return array<string, mixed>
+     */
+    private function getConfig(): array
+    {
+        return $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs'] ?? [];
     }
 
     private function normalizeKey(string $key): string
