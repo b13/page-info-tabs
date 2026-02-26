@@ -15,9 +15,10 @@ namespace B13\PageInfoTabs\EventDispatcher;
 use B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent;
 use B13\PageInfoTabs\Model\Section;
 use B13\PageInfoTabs\Service\LabelResolver;
+use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\EventDispatcher\ListenerProviderInterface;
 use TYPO3\CMS\Backend\Controller\Event\ModifyPageLayoutContentEvent;
+use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\View\ViewFactoryData;
 use TYPO3\CMS\Core\View\ViewFactoryInterface;
@@ -28,9 +29,8 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
 {
     public function __construct(
         private readonly EventDispatcherInterface $inner,
-        private readonly ListenerProviderInterface $listenerProvider,
-        private readonly ViewFactoryInterface $viewFactory,
-        private readonly PageRenderer $pageRenderer,
+        private readonly ListenerProvider $listenerProvider,
+        private readonly ContainerInterface $container,
         private readonly LabelResolver $labelResolver,
     ) {}
 
@@ -112,10 +112,11 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
             return $event;
         }
 
-        // 2+ sections: render as tabs
-        $this->pageRenderer->loadJavaScriptModule('@b13/page-info-tabs/tab-resize.js');
+        // 2+ sections: render as tabs (resolve lazily to avoid circular DI during bootstrap)
+        $this->container->get(PageRenderer::class)->loadJavaScriptModule('@b13/page-info-tabs/tab-resize.js');
 
-        $view = $this->viewFactory->create(new ViewFactoryData());
+        $viewFactory = $this->container->get(ViewFactoryInterface::class);
+        $view = $viewFactory->create(new ViewFactoryData());
         if (!$view instanceof FluidViewAdapter) {
             $event->setHeaderContent(implode('', array_map(static fn(Section $s) => $s->content, $allSections)));
             return $event;
