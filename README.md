@@ -13,20 +13,26 @@ becomes an unstructured stack.
 
 ## How It Works
 
-1. Extensions that know about `page-info-tabs` listen to
-   `CollectPageInfoSectionsEvent` and register `Section` objects (label,
-   HTML content, priority).
-2. Extensions that **don't** know about it keep using `addHeaderContent()`
-   as before — their output is captured automatically as a fallback section.
-3. The coordinator renders the result:
-   - **0 sections** — nothing
-   - **1 section** — rendered directly, no tabs
-   - **2+ sections** — Bootstrap 5 tabs sorted by priority
+Page Info Tabs decorates TYPO3's `EventDispatcherInterface` and
+automatically captures the content each `ModifyPageLayoutContentEvent`
+listener adds. Every listener's output becomes its own tab — **no code
+changes required** in any extension.
+
+- **0 sections** — nothing rendered
+- **1 section** — rendered directly, no tabs
+- **2+ sections** — Bootstrap 5 tabs sorted by priority
+
+Tab labels are auto-detected from HTML patterns (CSS classes like
+`blog-pageheader`, `tx-ext-key`, `bJS_tx*`, `EXT:` references) and can be
+configured explicitly.
 
 No additional JavaScript is needed for tab switching — the TYPO3 backend
 already loads Bootstrap's tab JS. A small resize-event helper is included
 to fix chart libraries (Frappe Charts, Chart.js, etc.) that render
 incorrectly inside initially hidden tab panes.
+
+The most recently used tab is remembered in localStorage and automatically
+selected when navigating between pages.
 
 ## Installation
 
@@ -34,9 +40,35 @@ incorrectly inside initially hidden tab panes.
 composer require b13/page-info-tabs
 ```
 
-## Registering a Section
+That's it. All existing extensions that use `addHeaderContent()` will
+automatically get their own tab.
 
-Listen to `CollectPageInfoSectionsEvent` from your extension:
+## Configuring Labels
+
+Default labels are provided for known extensions. To customise or add
+labels, set them in your `ext_localconf.php` or `AdditionalConfiguration.php`:
+
+```php
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['view_tracker'] = 'Page Views';
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['blog'] = 'Blog';
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['my_extension'] = 'My Label';
+```
+
+Priorities (tab ordering) can be configured the same way:
+
+```php
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['view_tracker'] = 20;
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['blog'] = 10;
+```
+
+Lower priority = leftmost tab.
+
+## Explicit Section Registration (Optional)
+
+Extensions that want full control over their tab label, priority, and
+content can listen to `CollectPageInfoSectionsEvent` instead. Explicit
+sections take precedence over auto-captured content from the same
+extension.
 
 ```php
 use B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent;
@@ -54,29 +86,11 @@ final class MyPageInfoSection
             identifier: 'my-extension',
             label: 'My Label',
             content: '<div>Your HTML here</div>',
-            priority: 50, // lower = leftmost tab
+            priority: 50,
         ));
     }
 }
 ```
-
-If your extension should also work **without** `page-info-tabs` installed,
-add a guard to your existing `ModifyPageLayoutContentEvent` listener:
-
-```php
-if (class_exists(\B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent::class)) {
-    return;
-}
-```
-
-## Tab Ordering
-
-| Priority | Typical Use |
-|---|---|
-| 10 | Static metadata (blog info, SEO) |
-| 20 | Primary analytics (page views) |
-| 30 | Specialized analytics (AI bots) |
-| 100 | Legacy fallback (unstructured content) |
 
 ## Requirements
 
