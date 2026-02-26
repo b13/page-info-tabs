@@ -6,4 +6,9 @@ services:
 
   B13\PageInfoTabs\:
     resource: ../Classes/*
-    exclude: ../Classes/{Event,Model}/*
+    exclude: ../Classes/{Event,EventListener,Model}/*
+
+  B13\PageInfoTabs\EventDispatcher\TrackingEventDispatcher:
+    decorates: Psr\EventDispatcher\EventDispatcherInterface
+    arguments:
+      $inner: '@.inner'
