@@ -68,22 +68,42 @@ class LabelResolver
     }
 
     /**
-     * Translate `LLL:EXT:.../locallang.xlf:key` labels via Extbase's LocalizationUtility.
-     * Plain strings pass through unchanged; missing translations fall back to the raw label
-     * so a typo in a key never produces an empty tab.
+     * Translate label references via Extbase's LocalizationUtility.
+     * Recognises both the legacy `LLL:EXT:.../locallang.xlf:key` syntax and the
+     * v14+ translation-domain syntax `package.resource:identifier`. Plain strings
+     * pass through unchanged; missing translations fall back to the raw label so
+     * a typo in a key never produces an empty tab.
      */
     public function resolveTranslation(string $label): string
     {
-        if (!str_starts_with($label, 'LLL:')) {
+        if (!$this->looksLikeTranslationReference($label)) {
             return $label;
         }
-        $translated = $this->translate($label);
+        try {
+            $translated = $this->translate($label);
+        } catch (\Throwable) {
+            // v13 doesn't understand v14 domain syntax, and bad keys can throw — never fail rendering.
+            return $label;
+        }
         return ($translated === null || $translated === '') ? $label : $translated;
     }
 
     protected function translate(string $key): ?string
     {
         return LocalizationUtility::translate($key);
+    }
+
+    /**
+     * - Legacy: starts with `LLL:`
+     * - v14 domain: `package.segment(.segment)*:identifier`, snake_case parts, no spaces.
+     *   Requires at least one dot before the colon to keep plain labels like "Page: 5" out.
+     */
+    private function looksLikeTranslationReference(string $label): bool
+    {
+        if (str_starts_with($label, 'LLL:')) {
+            return true;
+        }
+        return (bool)preg_match('/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+:[A-Za-z0-9_.\-]+$/', $label);
     }
 
     public function resolvePriority(?string $extensionKey, int $default): int

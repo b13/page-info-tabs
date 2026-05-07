@@ -115,10 +115,11 @@ final class MyPageInfoSection
 }
 ```
 
-`label` accepts either a plain string or an `LLL:` translation key —
-e.g. `'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label'`.
-Keys are translated when the tab bar is rendered; if the key is missing
-from the language file the raw label is used as a fallback.
+`label` accepts a plain string or a translation reference. Both legacy
+`LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label` and
+the v14+ translation-domain syntax `my_ext.tab:label` are supported and
+resolved when the tab bar is rendered. If the key is missing from the
+language file the raw label is used as a fallback.
 
 ## Requirements
 

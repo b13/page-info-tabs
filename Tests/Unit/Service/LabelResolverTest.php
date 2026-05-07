@@ -23,6 +23,33 @@ final class LabelResolverTest extends LabelResolverTestCase
 
         self::assertSame('Page Views', $resolver->resolveTranslation('Page Views'));
         self::assertSame('', $resolver->resolveTranslation(''));
+        // Colon alone is not a translation reference — must have a dotted domain prefix.
+        self::assertSame('Page: 5', $resolver->resolveTranslation('Page: 5'));
+        self::assertSame('Time 12:00', $resolver->resolveTranslation('Time 12:00'));
+    }
+
+    public function testV14DomainSyntaxIsTranslated(): void
+    {
+        $resolver = $this->makeResolver(static fn(string $key): ?string => match ($key) {
+            'my_ext.tab:label' => 'Translated',
+            'my_blog.frontend.forms:submit' => 'Submit',
+            'my_extension.comment:domain_model.title' => 'Title',
+            default => null,
+        });
+
+        self::assertSame('Translated', $resolver->resolveTranslation('my_ext.tab:label'));
+        self::assertSame('Submit', $resolver->resolveTranslation('my_blog.frontend.forms:submit'));
+        self::assertSame('Title', $resolver->resolveTranslation('my_extension.comment:domain_model.title'));
+    }
+
+    public function testTranslateExceptionsFallBackToRawLabel(): void
+    {
+        // v13 raises on v14 domain syntax; ensure rendering never fails.
+        $resolver = $this->makeResolver(static function (string $key): ?string {
+            throw new \InvalidArgumentException('unknown extension');
+        });
+
+        self::assertSame('my_ext.tab:label', $resolver->resolveTranslation('my_ext.tab:label'));
     }
 
     public function testLllKeyReturnsTranslation(): void
