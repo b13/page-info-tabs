@@ -12,7 +12,9 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Service;
 
-final class LabelResolver
+use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
+
+class LabelResolver
 {
     /**
      * Detect the TYPO3 extension key from rendered HTML content.
@@ -63,6 +65,25 @@ final class LabelResolver
             return ucwords(str_replace('_', ' ', $extensionKey));
         }
         return 'Info';
+    }
+
+    /**
+     * Translate `LLL:EXT:.../locallang.xlf:key` labels via Extbase's LocalizationUtility.
+     * Plain strings pass through unchanged; missing translations fall back to the raw label
+     * so a typo in a key never produces an empty tab.
+     */
+    public function resolveTranslation(string $label): string
+    {
+        if (!str_starts_with($label, 'LLL:')) {
+            return $label;
+        }
+        $translated = $this->translate($label);
+        return ($translated === null || $translated === '') ? $label : $translated;
+    }
+
+    protected function translate(string $key): ?string
+    {
+        return LocalizationUtility::translate($key);
     }
 
     public function resolvePriority(?string $extensionKey, int $default): int

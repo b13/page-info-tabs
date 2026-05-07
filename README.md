@@ -115,6 +115,11 @@ final class MyPageInfoSection
 }
 ```
 
+`label` accepts either a plain string or an `LLL:` translation key —
+e.g. `'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label'`.
+Keys are translated when the tab bar is rendered; if the key is missing
+from the language file the raw label is used as a fallback.
+
 ## Requirements
 
 - PHP 8.2+

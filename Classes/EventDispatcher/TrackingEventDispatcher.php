@@ -105,6 +105,17 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
             return $event;
         }
 
+        $allSections = array_map(
+            fn(Section $section) => new Section(
+                identifier: $section->identifier,
+                label: $this->labelResolver->resolveTranslation($section->label),
+                content: $section->content,
+                priority: $section->priority,
+                iconIdentifier: $section->iconIdentifier,
+            ),
+            $allSections,
+        );
+
         usort($allSections, static fn(Section $a, Section $b) => $a->priority <=> $b->priority);
 
         if (count($allSections) === 1) {
