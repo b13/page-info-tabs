@@ -30,7 +30,7 @@
 	"extra": {
 		"typo3/cms": {
 			"extension-key": "page_info_tabs",
-			"version": "1.0.2",
+			"version": "1.1.0",
 			"web-dir": ".Build/Web",
 			"Package": {
 				"providesPackages": {}

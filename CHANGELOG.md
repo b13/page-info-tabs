@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-14
+
 ### Added
+- **Available in the TYPO3 Extension Repository** as `page_info_tabs`, in
+  addition to Packagist.
 - **Tab labels are translatable.** The fallback label "Info" and the default
   labels for `blog` and `view_tracker` come from a language file with English
   and German labels. Configured labels are translated into the language of the
