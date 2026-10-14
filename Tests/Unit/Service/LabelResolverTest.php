@@ -12,9 +12,6 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Tests\Unit\Service;
 
-use B13\PageInfoTabs\Service\LabelResolver;
-use PHPUnit\Framework\TestCase;
-
 final class LabelResolverTest extends LabelResolverTestCase
 {
     public function testPlainStringPassesThrough(): void
@@ -73,29 +70,5 @@ final class LabelResolverTest extends LabelResolverTestCase
         $key = 'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:missing';
         self::assertSame($key, $nullResolver->resolveTranslation($key));
         self::assertSame($key, $emptyResolver->resolveTranslation($key));
-    }
-}
-
-abstract class LabelResolverTestCase extends TestCase
-{
-    /**
-     * @param callable(string): ?string $translator
-     */
-    protected function makeResolver(callable $translator): LabelResolver
-    {
-        return new class($translator) extends LabelResolver {
-            /** @var callable(string): ?string */
-            private $translator;
-
-            public function __construct(callable $translator)
-            {
-                $this->translator = $translator;
-            }
-
-            protected function translate(string $key): ?string
-            {
-                return ($this->translator)($key);
-            }
-        };
     }
 }
