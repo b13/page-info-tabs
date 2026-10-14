@@ -80,7 +80,7 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
         $explicitIdentifiers = [];
         foreach ($explicitSections as $section) {
             $allSections[] = $section;
-            $explicitIdentifiers[] = $section->identifier;
+            $explicitIdentifiers[] = $this->labelResolver->normalizeIdentifier($section->identifier);
         }
 
         // Auto-captured sections (skip if the same extension registered an explicit section)
@@ -135,9 +135,36 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplateRootPaths(['EXT:page_info_tabs/Resources/Private/Templates/PageInfoTabs']);
         $view->getRenderingContext()->setTemplatePaths($templatePaths);
-        $view->assignMultiple(['sections' => $allSections]);
+        $view->assignMultiple(['tabs' => $this->buildTabs($allSections)]);
 
         $event->setHeaderContent($view->render('Tabs'));
         return $event;
+    }
+
+    /**
+     * Pair each section with an id that is unique and safe to use in DOM ids
+     * and CSS selectors. The section identifier itself stays untouched, it is
+     * what the tab memory in the browser keys on.
+     *
+     * @param list<Section> $sections
+     * @return list<array{domId: string, section: Section}>
+     */
+    private function buildTabs(array $sections): array
+    {
+        $tabs = [];
+        $usedIds = [];
+        foreach ($sections as $section) {
+            $baseId = trim((string)preg_replace('/[^a-z0-9_-]+/', '-', strtolower($section->identifier)), '-');
+            if ($baseId === '') {
+                $baseId = 'section';
+            }
+            $domId = $baseId;
+            for ($suffix = 2; isset($usedIds[$domId]); $suffix++) {
+                $domId = $baseId . '-' . $suffix;
+            }
+            $usedIds[$domId] = true;
+            $tabs[] = ['domId' => $domId, 'section' => $section];
+        }
+        return $tabs;
     }
 }

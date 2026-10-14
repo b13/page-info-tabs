@@ -22,9 +22,9 @@ changes required** in any extension.
 - **1 section** — rendered directly, no tabs
 - **2+ sections** — Bootstrap 5 tabs sorted by priority
 
-Tab labels are auto-detected from HTML patterns (CSS classes like
-`blog-pageheader`, `tx-ext-key`, `bJS_tx*`, `EXT:` references) and can be
-configured explicitly.
+Tab labels are auto-detected from HTML patterns (a `data-extension`
+attribute, CSS classes like `tx-ext-key` or `blog-pageheader`, `bJS_tx*`
+hooks) and can be configured explicitly.
 
 No additional JavaScript is needed for tab switching — the TYPO3 backend
 already loads Bootstrap's tab JS. A small resize-event helper is included
@@ -77,10 +77,14 @@ auto-detected from HTML patterns in the following order:
 
 1. `data-extension="my_ext"` attribute (most reliable — extensions can
    add this explicitly)
-2. CSS classes like `my-ext-pageheader` or `my-ext-widget`
-3. TYPO3 convention classes: `tx-my-ext` or `tx_my_ext`
-4. b13 JS hooks: `bJS_txMyExt`
-5. `EXT:my_ext/` references in `src`/`href` attributes
+2. TYPO3 convention classes or ids: `tx-my-ext`, `tx_my_ext_pi1`
+3. b13 JS hooks: `bJS_txMyExt`
+4. Page header classes: `my-ext-pageheader`
+
+Except for `data-extension`, a pattern only counts if it names an active
+extension. For `tx-my-ext-list` the longest active prefix wins (`my_ext`),
+and generic markup like `card-header` is never taken for an extension.
+Sections without a detected key get an `auto-<n>` key.
 
 If auto-detection produces an unexpected key, you can either configure a
 label for that key directly, or ask the extension author to add a
@@ -91,7 +95,9 @@ label for that key directly, or ask the extension author to add a
 Extensions that want full control over their tab label, priority, and
 content can listen to `CollectPageInfoSectionsEvent` instead. Explicit
 sections take precedence over auto-captured content from the same
-extension.
+extension. Use the extension key as identifier, so the auto-captured
+content can be matched (`my-extension` and `my_extension` are treated
+the same).
 
 ```php
 use B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent;
@@ -106,7 +112,7 @@ final class MyPageInfoSection
         $pageId = (int)($event->getRequest()->getQueryParams()['id'] ?? 0);
 
         $event->addSection(new Section(
-            identifier: 'my-extension',
+            identifier: 'my_extension',
             label: 'My Label',
             content: '<div>Your HTML here</div>',
             priority: 50,

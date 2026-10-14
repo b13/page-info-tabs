@@ -12,48 +12,97 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Service;
 
+use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class LabelResolver
 {
+    public function __construct(
+        private readonly PackageManager $packageManager,
+    ) {}
+
     /**
      * Detect the TYPO3 extension key from rendered HTML content.
      *
-     * Looks for common patterns:
-     *  - CSS classes like "blog-pageheader", "tx-blog-*", "tx_blog_*"
-     *  - JS hooks like "bJS_txViewTracker*"
-     *  - EXT: references in URLs or attributes
-     *  - data-extension attributes
+     * A `data-extension` attribute is taken as is. All other patterns only
+     * yield candidates, and the first candidate that is an active extension
+     * wins. This keeps generic markup like `card-header` from being mistaken
+     * for an extension. Patterns, in order:
+     *  - `data-extension="my_ext"`
+     *  - TYPO3 convention classes/ids: `tx-my-ext-list`, `tx_my_ext_pi1`
+     *  - b13 JS hooks: `bJS_txMyExt`
+     *  - page header classes: `my-ext-pageheader`
      */
     public function detectExtensionKey(string $content): ?string
     {
-        // Explicit data-extension attribute (highest priority)
-        if (preg_match('/data-extension=["\']([a-z_-]+)["\']/i', $content, $m)) {
-            return $this->normalizeKey($m[1]);
+        if (preg_match('/data-extension=["\']([a-z0-9_-]+)["\']/i', $content, $m)) {
+            return $this->normalizeIdentifier($m[1]);
         }
 
-        // Extension-specific CSS class prefixes: "blog-pageheader" → "blog"
-        if (preg_match('/class=["\'][^"\']*\b([a-z][a-z0-9]*)-(?:pageheader|header|module|widget)\b/i', $content, $m)) {
-            return $this->normalizeKey($m[1]);
-        }
-
-        // TYPO3 convention: "tx-ext-key" or "tx_ext_key" in class/id
-        if (preg_match('/(?:class|id)=["\'][^"\']*\btx[-_]([a-z][a-z0-9_]+)/i', $content, $m)) {
-            return $this->normalizeKey($m[1]);
-        }
-
-        // b13 JS hook convention: "bJS_txExtensionName"
-        if (preg_match('/bJS_tx([A-Z][a-zA-Z]+)/', $content, $m)) {
-            return $this->camelToSnake($m[1]);
-        }
-
-        // EXT: references in src/href attributes
-        if (preg_match('/(?:src|href)=["\'][^"\']*EXT:([a-z_]+)\//i', $content, $m)) {
-            return $m[1];
+        foreach ($this->collectCandidates($content) as $candidate) {
+            if ($this->packageManager->isPackageActive($candidate)) {
+                return $candidate;
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Normalize an identifier the way extension keys are written,
+     * so `my-extension` and `my_extension` compare equal.
+     */
+    public function normalizeIdentifier(string $identifier): string
+    {
+        return strtolower(str_replace('-', '_', $identifier));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function collectCandidates(string $content): array
+    {
+        $tokens = [];
+        if (preg_match_all('/\b(?:class|id)=["\']([^"\']*)["\']/i', $content, $matches)) {
+            foreach ($matches[1] as $attributeValue) {
+                $tokens = [...$tokens, ...(preg_split('/\s+/', strtolower($attributeValue), -1, PREG_SPLIT_NO_EMPTY) ?: [])];
+            }
+        }
+
+        $candidates = [];
+        foreach ($tokens as $token) {
+            if (preg_match('/^tx[-_]([a-z][a-z0-9_-]*)$/', $token, $m)) {
+                $candidates = [...$candidates, ...$this->prefixCandidates($m[1])];
+            }
+        }
+        if (preg_match_all('/bJS_tx([A-Z][a-zA-Z0-9]+)/', $content, $matches)) {
+            foreach ($matches[1] as $name) {
+                $candidates[] = GeneralUtility::camelCaseToLowerCaseUnderscored($name);
+            }
+        }
+        foreach ($tokens as $token) {
+            if (preg_match('/^([a-z][a-z0-9_-]*)-pageheader$/', $token, $m)) {
+                $candidates = [...$candidates, ...$this->prefixCandidates($m[1])];
+            }
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    /**
+     * "view-tracker-list" → ["view_tracker_list", "view_tracker", "view"]
+     *
+     * @return list<string>
+     */
+    private function prefixCandidates(string $value): array
+    {
+        $parts = preg_split('/[-_]+/', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $candidates = [];
+        for ($length = count($parts); $length > 0; $length--) {
+            $candidates[] = implode('_', array_slice($parts, 0, $length));
+        }
+        return $candidates;
     }
 
     public function resolveLabel(?string $extensionKey): string
@@ -123,15 +172,5 @@ class LabelResolver
     private function getConfig(): array
     {
         return $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs'] ?? [];
-    }
-
-    private function normalizeKey(string $key): string
-    {
-        return strtolower(str_replace('-', '_', $key));
-    }
-
-    private function camelToSnake(string $input): string
-    {
-        return GeneralUtility::camelCaseToLowerCaseUnderscored($input);
     }
 }

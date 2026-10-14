@@ -14,6 +14,7 @@ namespace B13\PageInfoTabs\Tests\Unit\Service;
 
 use B13\PageInfoTabs\Service\LabelResolver;
 use PHPUnit\Framework\TestCase;
+use TYPO3\CMS\Core\Package\PackageManager;
 
 abstract class LabelResolverTestCase extends TestCase
 {
@@ -22,12 +23,13 @@ abstract class LabelResolverTestCase extends TestCase
      */
     protected function makeResolver(callable $translator): LabelResolver
     {
-        return new class ($translator) extends LabelResolver {
+        return new class ($this->createStub(PackageManager::class), $translator) extends LabelResolver {
             /** @var callable(string): ?string */
             private $translator;
 
-            public function __construct(callable $translator)
+            public function __construct(PackageManager $packageManager, callable $translator)
             {
+                parent::__construct($packageManager);
                 $this->translator = $translator;
             }
 
