@@ -26,10 +26,10 @@ Tab labels are auto-detected from HTML patterns (a `data-extension`
 attribute, CSS classes like `tx-ext-key` or `blog-pageheader`, `bJS_tx*`
 hooks) and can be configured explicitly.
 
-No additional JavaScript is needed for tab switching — the TYPO3 backend
-already loads Bootstrap's tab JS. A small resize-event helper is included
-to fix chart libraries (Frappe Charts, Chart.js, etc.) that render
-incorrectly inside initially hidden tab panes.
+Tab switching and keyboard navigation come from the TYPO3 backend
+(Bootstrap in TYPO3 13, the backend tab component in TYPO3 14). A small
+helper module fixes chart libraries (Frappe Charts, Chart.js, etc.) that
+render incorrectly inside initially hidden tab panes.
 
 The most recently used tab is remembered in localStorage and automatically
 selected when navigating between pages.

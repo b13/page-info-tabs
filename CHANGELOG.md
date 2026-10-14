@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explicit sections replace auto-captured content reliably.** An explicit
   identifier written with dashes (`my-extension`) now matches the detected
   extension key (`my_extension`), so the content no longer shows up twice.
+- **The last used tab is restored in TYPO3 14.2 and later.** The new backend
+  tab component replaces the Bootstrap attributes the script relied on, so the
+  remembered tab was not selected anymore.
+- **Tab markup follows the ARIA tabs pattern** before any script runs: tabs
+  carry `aria-selected`, `tabindex`, and an id, panels `aria-labelledby`, and
+  the wrapper no longer claims to be a tab panel itself.
 - **Invalid label or priority configuration no longer breaks the page
   module.** Values of the wrong type are ignored and the default is used.
 - **Listeners that rearrange the header content are handled.** Content that
