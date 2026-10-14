@@ -16,7 +16,7 @@ final class LabelResolverTest extends LabelResolverTestCase
 {
     public function testPlainStringPassesThrough(): void
     {
-        $resolver = $this->makeResolver(static fn(string $key): ?string => 'should not be called');
+        $resolver = $this->makeResolver(static fn(string $key): string => 'should not be called');
 
         self::assertSame('Page Views', $resolver->resolveTranslation('Page Views'));
         self::assertSame('', $resolver->resolveTranslation(''));
@@ -65,7 +65,7 @@ final class LabelResolverTest extends LabelResolverTestCase
     public function testMissingTranslationFallsBackToRawLabel(): void
     {
         $nullResolver = $this->makeResolver(static fn(string $key): ?string => null);
-        $emptyResolver = $this->makeResolver(static fn(string $key): ?string => '');
+        $emptyResolver = $this->makeResolver(static fn(string $key): string => '');
 
         $key = 'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:missing';
         self::assertSame($key, $nullResolver->resolveTranslation($key));

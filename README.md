@@ -46,7 +46,7 @@ automatically get their own tab.
 ## Configuring Labels
 
 Default labels are provided for known extensions. To customise or add
-labels, set them in your `ext_localconf.php` or `AdditionalConfiguration.php`:
+labels, set them in your `ext_localconf.php` or `config/system/additional.php`:
 
 ```php
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['view_tracker'] = 'Page Views';
@@ -115,6 +115,9 @@ final class MyPageInfoSection
 }
 ```
 
+`content` is rendered as is. Escape any user-provided data in your
+listener, exactly as you would for `addHeaderContent()`.
+
 `label` accepts a plain string or a translation reference. Both legacy
 `LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label` and
 the v14+ translation-domain syntax `my_ext.tab:label` are supported and
@@ -124,7 +127,18 @@ language file the raw label is used as a fallback.
 ## Requirements
 
 - PHP 8.2+
-- TYPO3 13.4+ or 14.x
+- TYPO3 13.4 LTS or 14.3 LTS
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+```bash
+composer install
+composer test:cs
+composer test:phpstan
+composer test:unit
+```
 
 ## License
 

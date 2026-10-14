@@ -2,6 +2,8 @@
 	"name": "b13/page-info-tabs",
 	"type": "typo3-cms-extension",
 	"description": "Organizes page module header sections into Bootstrap 5 tabs",
+	"keywords": ["TYPO3", "TYPO3 CMS", "page module", "backend", "tabs"],
+	"homepage": "https://b13.com",
 	"license": "GPL-2.0-or-later",
 	"authors": [
 		{
@@ -10,19 +12,30 @@
 			"homepage": "https://b13.com"
 		}
 	],
+	"support": {
+		"issues": "https://github.com/b13/page-info-tabs/issues",
+		"source": "https://github.com/b13/page-info-tabs"
+	},
 	"require": {
 		"php": "^8.2",
-		"typo3/cms-core": "^13 || ^14",
-		"typo3/cms-backend": "^13 || ^14",
-		"typo3/cms-fluid": "^13 || ^14"
+		"typo3/cms-core": "^13.4 || ^14.3",
+		"typo3/cms-backend": "^13.4 || ^14.3",
+		"typo3/cms-extbase": "^13.4 || ^14.3",
+		"typo3/cms-fluid": "^13.4 || ^14.3"
 	},
 	"require-dev": {
-		"phpunit/phpunit": "^10.5 || ^11.0"
+		"phpstan/phpstan": "^2.1",
+		"phpunit/phpunit": "^11.5",
+		"typo3/coding-standards": "^0.8 || ^0.9"
 	},
 	"extra": {
 		"typo3/cms": {
 			"extension-key": "page_info_tabs",
-			"version": "1.0.2"
+			"version": "1.0.2",
+			"web-dir": ".Build/Web",
+			"Package": {
+				"providesPackages": {}
+			}
 		}
 	},
 	"autoload": {
@@ -35,7 +48,17 @@
 			"B13\\PageInfoTabs\\Tests\\": "Tests/"
 		}
 	},
+	"config": {
+		"vendor-dir": ".Build/vendor",
+		"bin-dir": ".Build/bin",
+		"allow-plugins": {
+			"typo3/class-alias-loader": true,
+			"typo3/cms-composer-installers": true
+		}
+	},
 	"scripts": {
-		"test:unit": "phpunit --testdox"
+		"test:unit": "phpunit -c Build/phpunit/UnitTests.xml --testdox",
+		"test:cs": "php-cs-fixer fix --config=Build/php-cs-fixer.php --dry-run --diff --using-cache=no",
+		"test:phpstan": "phpstan analyse -c Build/phpstan.neon"
 	}
 }

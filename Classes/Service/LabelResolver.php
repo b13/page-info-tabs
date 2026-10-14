@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Service;
 
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class LabelResolver
@@ -131,6 +132,6 @@ class LabelResolver
 
     private function camelToSnake(string $input): string
     {
-        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $input));
+        return GeneralUtility::camelCaseToLowerCaseUnderscored($input);
     }
 }
