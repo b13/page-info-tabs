@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file source-language="en" datatype="plaintext" original="EXT:page_info_tabs/Resources/Private/Language/locallang.xlf" product-name="page_info_tabs">
+		<header/>
+		<body>
+			<trans-unit id="tab.fallback" resname="tab.fallback">
+				<source>Info</source>
+			</trans-unit>
+			<trans-unit id="tab.blog" resname="tab.blog">
+				<source>Blog</source>
+			</trans-unit>
+			<trans-unit id="tab.view_tracker" resname="tab.view_tracker">
+				<source>Page Views</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

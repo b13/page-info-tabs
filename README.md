@@ -22,14 +22,14 @@ changes required** in any extension.
 - **1 section** — rendered directly, no tabs
 - **2+ sections** — Bootstrap 5 tabs sorted by priority
 
-Tab labels are auto-detected from HTML patterns (CSS classes like
-`blog-pageheader`, `tx-ext-key`, `bJS_tx*`, `EXT:` references) and can be
-configured explicitly.
+Tab labels are auto-detected from HTML patterns (a `data-extension`
+attribute, CSS classes like `tx-ext-key` or `blog-pageheader`, `bJS_tx*`
+hooks) and can be configured explicitly.
 
-No additional JavaScript is needed for tab switching — the TYPO3 backend
-already loads Bootstrap's tab JS. A small resize-event helper is included
-to fix chart libraries (Frappe Charts, Chart.js, etc.) that render
-incorrectly inside initially hidden tab panes.
+Tab switching and keyboard navigation come from the TYPO3 backend
+(Bootstrap in TYPO3 13, the backend tab component in TYPO3 14). A small
+helper module fixes chart libraries (Frappe Charts, Chart.js, etc.) that
+render incorrectly inside initially hidden tab panes.
 
 The most recently used tab is remembered in localStorage and automatically
 selected when navigating between pages.
@@ -46,13 +46,18 @@ automatically get their own tab.
 ## Configuring Labels
 
 Default labels are provided for known extensions. To customise or add
-labels, set them in your `ext_localconf.php` or `AdditionalConfiguration.php`:
+labels, set them in your `ext_localconf.php` or `config/system/additional.php`:
 
 ```php
-$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['view_tracker'] = 'Page Views';
-$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['blog'] = 'Blog';
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['my_extension'] = 'My Label';
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['other_extension'] = 'LLL:EXT:my_sitepackage/Resources/Private/Language/locallang.xlf:tab.other';
 ```
+
+Labels accept plain strings and translation references, translated into
+the language of the backend user. Values that are not strings are ignored.
+Tabs without a configured label are named after the extension key
+(`my_extension` → "My Extension"), tabs without a detected key are labeled
+"Info".
 
 Priorities (tab ordering) can be configured the same way:
 
@@ -61,7 +66,7 @@ $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['view_
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['blog'] = 10;
 ```
 
-Lower priority = leftmost tab.
+Lower priority = leftmost tab. Non-numeric values are ignored.
 
 ## Finding the Extension Key
 
@@ -77,10 +82,14 @@ auto-detected from HTML patterns in the following order:
 
 1. `data-extension="my_ext"` attribute (most reliable — extensions can
    add this explicitly)
-2. CSS classes like `my-ext-pageheader` or `my-ext-widget`
-3. TYPO3 convention classes: `tx-my-ext` or `tx_my_ext`
-4. b13 JS hooks: `bJS_txMyExt`
-5. `EXT:my_ext/` references in `src`/`href` attributes
+2. TYPO3 convention classes or ids: `tx-my-ext`, `tx_my_ext_pi1`
+3. b13 JS hooks: `bJS_txMyExt`
+4. Page header classes: `my-ext-pageheader`
+
+Except for `data-extension`, a pattern only counts if it names an active
+extension. For `tx-my-ext-list` the longest active prefix wins (`my_ext`),
+and generic markup like `card-header` is never taken for an extension.
+Sections without a detected key get an `auto-<n>` key.
 
 If auto-detection produces an unexpected key, you can either configure a
 label for that key directly, or ask the extension author to add a
@@ -91,7 +100,9 @@ label for that key directly, or ask the extension author to add a
 Extensions that want full control over their tab label, priority, and
 content can listen to `CollectPageInfoSectionsEvent` instead. Explicit
 sections take precedence over auto-captured content from the same
-extension.
+extension. Use the extension key as identifier, so the auto-captured
+content can be matched (`my-extension` and `my_extension` are treated
+the same).
 
 ```php
 use B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent;
@@ -106,7 +117,7 @@ final class MyPageInfoSection
         $pageId = (int)($event->getRequest()->getQueryParams()['id'] ?? 0);
 
         $event->addSection(new Section(
-            identifier: 'my-extension',
+            identifier: 'my_extension',
             label: 'My Label',
             content: '<div>Your HTML here</div>',
             priority: 50,
@@ -114,6 +125,9 @@ final class MyPageInfoSection
     }
 }
 ```
+
+`content` is rendered as is. Escape any user-provided data in your
+listener, exactly as you would for `addHeaderContent()`.
 
 `label` accepts a plain string or a translation reference. Both legacy
 `LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label` and
@@ -124,7 +138,18 @@ language file the raw label is used as a fallback.
 ## Requirements
 
 - PHP 8.2+
-- TYPO3 13.4+ or 14.x
+- TYPO3 13.4 LTS or 14.3 LTS
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+```bash
+composer install
+composer test:cs
+composer test:phpstan
+composer test:unit
+```
 
 ## License
 
@@ -132,7 +157,7 @@ GPL-2.0-or-later — see the [LICENSE](LICENSE) file for details.
 
 ## Background, authors & maintenance
 
-This extension was created in 2026 by David Steeb for [b13 GmbH, Stuttgart](https://b13.com).
+This extension was created in 2026 by David Steeb for [b13 GmbH, Stuttgart](https://b13.com/?utm_source=page_info_tabs&utm_medium=readme).
 
-[Find more TYPO3 extensions we have developed](https://b13.com/useful-typo3-extensions-from-b13-to-you) that help us deliver value in client projects. As part of our work,
+[Find more TYPO3 extensions we have developed](https://b13.com/useful-typo3-extensions-from-b13-to-you?utm_source=page_info_tabs&utm_medium=readme) that help us deliver value in client projects. As part of our work,
 we focus on testing and best practices to ensure long-term performance, reliability, and results in all our code.

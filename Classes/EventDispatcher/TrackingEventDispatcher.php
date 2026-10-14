@@ -15,23 +15,34 @@ namespace B13\PageInfoTabs\EventDispatcher;
 use B13\PageInfoTabs\Event\CollectPageInfoSectionsEvent;
 use B13\PageInfoTabs\Model\Section;
 use B13\PageInfoTabs\Service\LabelResolver;
-use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\EventDispatcher\ListenerProviderInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Controller\Event\ModifyPageLayoutContentEvent;
-use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\View\ViewFactoryData;
 use TYPO3\CMS\Core\View\ViewFactoryInterface;
-use TYPO3\CMS\Fluid\View\FluidViewAdapter;
-use TYPO3\CMS\Fluid\View\TemplatePaths;
 
+/**
+ * Decorates the event dispatcher to see which listener added which part of
+ * the page module header. PSR-14 has no hook for that, so listeners of
+ * ModifyPageLayoutContentEvent are called here one by one instead of by the
+ * decorated dispatcher. All other events are passed through untouched.
+ * The event is final and not stoppable, so every listener is called.
+ */
 final class TrackingEventDispatcher implements EventDispatcherInterface
 {
     public function __construct(
         private readonly EventDispatcherInterface $inner,
-        private readonly ListenerProvider $listenerProvider,
-        private readonly ContainerInterface $container,
+        private readonly ListenerProviderInterface $listenerProvider,
+        // Lazy: the dispatcher is built while ext_localconf.php files are loaded,
+        // these services either depend on the dispatcher or must not exist that early
+        #[Autowire(lazy: true)]
         private readonly LabelResolver $labelResolver,
+        #[Autowire(lazy: true)]
+        private readonly PageRenderer $pageRenderer,
+        #[Autowire(lazy: true)]
+        private readonly ViewFactoryInterface $viewFactory,
     ) {}
 
     public function dispatch(object $event): object
@@ -45,8 +56,40 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
 
     private function dispatchPageLayoutEvent(ModifyPageLayoutContentEvent $event): ModifyPageLayoutContentEvent
     {
-        $previousContent = '';
-        $capturedSections = [];
+        $sections = $this->buildSections($event, $this->captureListenerContent($event));
+
+        if ($sections === []) {
+            $event->setHeaderContent('');
+            return $event;
+        }
+
+        if (count($sections) === 1) {
+            $event->setHeaderContent($sections[0]->content);
+            return $event;
+        }
+
+        $this->pageRenderer->loadJavaScriptModule('@b13/page-info-tabs/tab-resize.js');
+        $view = $this->viewFactory->create(new ViewFactoryData(
+            templateRootPaths: ['EXT:page_info_tabs/Resources/Private/Templates'],
+            request: $event->getRequest(),
+        ));
+        $view->assign('tabs', $this->buildTabs($sections));
+        $event->setHeaderContent($view->render('PageInfoTabs/Tabs'));
+        return $event;
+    }
+
+    /**
+     * Call each listener and record what it changed in the header content.
+     * Appended and prepended content becomes a section of its own. A listener
+     * that replaces the content (setHeaderContent) discards what was recorded
+     * before, as the previous content is gone from the page as well.
+     *
+     * @return list<string>
+     */
+    private function captureListenerContent(ModifyPageLayoutContentEvent $event): array
+    {
+        $previousContent = $event->getHeaderContent();
+        $captured = [];
 
         foreach ($this->listenerProvider->getListenersForEvent($event) as $listener) {
             $listener($event);
@@ -57,42 +100,48 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
             }
 
             if (str_starts_with($currentContent, $previousContent)) {
-                $delta = substr($currentContent, strlen($previousContent));
+                $captured[] = substr($currentContent, strlen($previousContent));
+            } elseif (str_ends_with($currentContent, $previousContent)) {
+                array_unshift($captured, substr($currentContent, 0, -strlen($previousContent)));
             } else {
-                // Listener used setHeaderContent — treat entire new value as its content
-                $delta = $currentContent;
-            }
-
-            if (trim($delta) !== '') {
-                $capturedSections[] = trim($delta);
+                $captured = [$currentContent];
             }
 
             $previousContent = $currentContent;
         }
 
-        // Collect explicit sections from extensions that know about page-info-tabs
+        return array_values(array_filter(
+            array_map(trim(...), $captured),
+            static fn(string $content): bool => $content !== '',
+        ));
+    }
+
+    /**
+     * Merge explicitly registered sections with the captured listener content.
+     * An explicit section replaces the captured content of the same extension.
+     *
+     * @param list<string> $capturedContent
+     * @return list<Section>
+     */
+    private function buildSections(ModifyPageLayoutContentEvent $event, array $capturedContent): array
+    {
         $collectEvent = new CollectPageInfoSectionsEvent($event->getRequest());
         $this->inner->dispatch($collectEvent);
-        $explicitSections = $collectEvent->getSections();
 
-        // Build final section list: explicit sections first
-        $allSections = [];
-        $explicitIdentifiers = [];
-        foreach ($explicitSections as $section) {
-            $allSections[] = $section;
-            $explicitIdentifiers[] = $section->identifier;
-        }
+        $sections = $collectEvent->getSections();
+        $explicitIdentifiers = array_map(
+            fn(Section $section): string => $this->labelResolver->normalizeIdentifier($section->identifier),
+            $sections,
+        );
 
-        // Auto-captured sections (skip if the same extension registered an explicit section)
         $autoPriority = 50;
-        foreach ($capturedSections as $content) {
+        foreach ($capturedContent as $content) {
             $extensionKey = $this->labelResolver->detectExtensionKey($content);
             if ($extensionKey !== null && in_array($extensionKey, $explicitIdentifiers, true)) {
                 continue;
             }
-            $identifier = $extensionKey ?? ('auto-' . count($allSections));
-            $allSections[] = new Section(
-                identifier: $identifier,
+            $sections[] = new Section(
+                identifier: $extensionKey ?? ('auto-' . count($sections)),
                 label: $this->labelResolver->resolveLabel($extensionKey),
                 content: $content,
                 priority: $this->labelResolver->resolvePriority($extensionKey, $autoPriority),
@@ -100,44 +149,45 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
             $autoPriority++;
         }
 
-        if ($allSections === []) {
-            $event->setHeaderContent('');
-            return $event;
-        }
-
-        $allSections = array_map(
-            fn(Section $section) => new Section(
+        $sections = array_map(
+            fn(Section $section): Section => new Section(
                 identifier: $section->identifier,
                 label: $this->labelResolver->resolveTranslation($section->label),
                 content: $section->content,
                 priority: $section->priority,
                 iconIdentifier: $section->iconIdentifier,
             ),
-            $allSections,
+            $sections,
         );
+        usort($sections, static fn(Section $a, Section $b): int => $a->priority <=> $b->priority);
 
-        usort($allSections, static fn(Section $a, Section $b) => $a->priority <=> $b->priority);
+        return $sections;
+    }
 
-        if (count($allSections) === 1) {
-            $event->setHeaderContent($allSections[0]->content);
-            return $event;
+    /**
+     * Pair each section with an id that is unique and safe to use in DOM ids
+     * and CSS selectors. The section identifier itself stays untouched, it is
+     * what the tab memory in the browser keys on.
+     *
+     * @param list<Section> $sections
+     * @return list<array{domId: string, section: Section}>
+     */
+    private function buildTabs(array $sections): array
+    {
+        $tabs = [];
+        $usedIds = [];
+        foreach ($sections as $section) {
+            $baseId = trim((string)preg_replace('/[^a-z0-9_-]+/', '-', strtolower($section->identifier)), '-');
+            if ($baseId === '') {
+                $baseId = 'section';
+            }
+            $domId = $baseId;
+            for ($suffix = 2; isset($usedIds[$domId]); $suffix++) {
+                $domId = $baseId . '-' . $suffix;
+            }
+            $usedIds[$domId] = true;
+            $tabs[] = ['domId' => $domId, 'section' => $section];
         }
-
-        // 2+ sections: render as tabs (resolve lazily to avoid circular DI during bootstrap)
-        $this->container->get(PageRenderer::class)->loadJavaScriptModule('@b13/page-info-tabs/tab-resize.js');
-
-        $viewFactory = $this->container->get(ViewFactoryInterface::class);
-        $view = $viewFactory->create(new ViewFactoryData());
-        if (!$view instanceof FluidViewAdapter) {
-            $event->setHeaderContent(implode('', array_map(static fn(Section $s) => $s->content, $allSections)));
-            return $event;
-        }
-        $templatePaths = new TemplatePaths();
-        $templatePaths->setTemplateRootPaths(['EXT:page_info_tabs/Resources/Private/Templates/PageInfoTabs']);
-        $view->getRenderingContext()->setTemplatePaths($templatePaths);
-        $view->assignMultiple(['sections' => $allSections]);
-
-        $event->setHeaderContent($view->render('Tabs'));
-        return $event;
+        return $tabs;
     }
 }

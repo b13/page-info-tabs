@@ -35,7 +35,7 @@ final class CollectPageInfoSectionsEvent
     }
 
     /**
-     * @return Section[]
+     * @return list<Section>
      */
     public function getSections(): array
     {

@@ -1,38 +1,44 @@
 <html
 	xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+	xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
 	data-namespace-typo3-fluid="true"
 >
 
-<div role="tabpanel">
+<div class="page-info-tabs">
 	<ul class="nav nav-tabs" role="tablist" id="page-info-tabs">
-		<f:for each="{sections}" as="section" iteration="i">
+		<f:for each="{tabs}" as="tab" iteration="i">
 			<li role="presentation" class="nav-item">
 				<button
 					type="button"
+					id="page-info-tab-{tab.domId}-tab"
 					class="nav-link{f:if(condition: i.isFirst, then: ' active')}"
-					data-bs-toggle="tab"
-					data-bs-target="#page-info-tab-{section.identifier}"
-					data-section-id="{section.identifier}"
-					aria-controls="page-info-tab-{section.identifier}"
 					role="tab"
+					data-bs-toggle="tab"
+					data-bs-target="#page-info-tab-{tab.domId}"
+					data-section-id="{tab.section.identifier}"
+					aria-controls="page-info-tab-{tab.domId}"
+					aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+					tabindex="{f:if(condition: i.isFirst, then: '0', else: '-1')}"
 				>
-					<f:if condition="{section.iconIdentifier}">
-						<core:icon identifier="{section.iconIdentifier}" size="small" />
+					<f:if condition="{tab.section.iconIdentifier}">
+						<core:icon identifier="{tab.section.iconIdentifier}" size="small" />
 					</f:if>
-					{section.label}
+					{tab.section.label}
 				</button>
 			</li>
 		</f:for>
 	</ul>
-	<div class="tab-content" style="margin-top: 1rem;">
-		<f:for each="{sections}" as="section" iteration="i">
+	<div class="tab-content mt-3">
+		<f:for each="{tabs}" as="tab" iteration="i">
 			<div
 				role="tabpanel"
 				class="tab-pane{f:if(condition: i.isFirst, then: ' active')}"
-				id="page-info-tab-{section.identifier}"
+				id="page-info-tab-{tab.domId}"
+				aria-labelledby="page-info-tab-{tab.domId}-tab"
+				tabindex="0"
 			>
-				<!-- page-info-tabs key: {section.identifier} -->
-			<f:format.raw>{section.content}</f:format.raw>
+				<!-- page-info-tabs key: {tab.section.identifier} -->
+				<f:format.raw>{tab.section.content}</f:format.raw>
 			</div>
 		</f:for>
 	</div>
