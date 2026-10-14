@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tab labels are translatable.** The fallback label "Info" and the default
+  labels for `blog` and `view_tracker` come from a language file with English
+  and German labels. Configured labels are translated into the language of the
+  backend user.
+
 ### Changed
 - **The tab bar is rendered with the current request.** Fluid view helpers
   that need a request now work in the template, and the extension no longer
@@ -33,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explicit sections replace auto-captured content reliably.** An explicit
   identifier written with dashes (`my-extension`) now matches the detected
   extension key (`my_extension`), so the content no longer shows up twice.
+- **Invalid label or priority configuration no longer breaks the page
+  module.** Values of the wrong type are ignored and the default is used.
 - **Listeners that rearrange the header content are handled.** Content that
   a listener prepends becomes its own tab instead of duplicating the earlier
   tabs, and a listener that replaces or clears the content is respected.

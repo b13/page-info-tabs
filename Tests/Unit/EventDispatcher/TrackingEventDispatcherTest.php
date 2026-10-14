@@ -23,6 +23,7 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 use TYPO3\CMS\Backend\Controller\Event\ModifyPageLayoutContentEvent;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\View\ViewFactoryData;
@@ -234,7 +235,7 @@ final class TrackingEventDispatcherTest extends TestCase
         return new TrackingEventDispatcher(
             $inner,
             $listenerProvider,
-            new LabelResolver($packageManager),
+            new LabelResolver($packageManager, self::createStub(LanguageServiceFactory::class)),
             self::createStub(PageRenderer::class),
             $viewFactory,
         );

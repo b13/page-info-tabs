@@ -12,11 +12,25 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Tests\Unit\Service;
 
-final class LabelResolverTest extends LabelResolverTestCase
+use B13\PageInfoTabs\Service\LabelResolver;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Package\PackageManager;
+
+final class LabelResolverTest extends TestCase
 {
-    public function testPlainStringPassesThrough(): void
+    protected function tearDown(): void
     {
-        $resolver = $this->makeResolver(static fn(string $key): string => 'should not be called');
+        unset($GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']);
+        parent::tearDown();
+    }
+
+    #[Test]
+    public function plainStringPassesThrough(): void
+    {
+        $resolver = $this->createResolver(static fn(string $key): string => 'should not be called');
 
         self::assertSame('Page Views', $resolver->resolveTranslation('Page Views'));
         self::assertSame('', $resolver->resolveTranslation(''));
@@ -25,13 +39,14 @@ final class LabelResolverTest extends LabelResolverTestCase
         self::assertSame('Time 12:00', $resolver->resolveTranslation('Time 12:00'));
     }
 
-    public function testV14DomainSyntaxIsTranslated(): void
+    #[Test]
+    public function v14DomainSyntaxIsTranslated(): void
     {
-        $resolver = $this->makeResolver(static fn(string $key): ?string => match ($key) {
+        $resolver = $this->createResolver(static fn(string $key): string => match ($key) {
             'my_ext.tab:label' => 'Translated',
             'my_blog.frontend.forms:submit' => 'Submit',
             'my_extension.comment:domain_model.title' => 'Title',
-            default => null,
+            default => '',
         });
 
         self::assertSame('Translated', $resolver->resolveTranslation('my_ext.tab:label'));
@@ -39,21 +54,22 @@ final class LabelResolverTest extends LabelResolverTestCase
         self::assertSame('Title', $resolver->resolveTranslation('my_extension.comment:domain_model.title'));
     }
 
-    public function testTranslateExceptionsFallBackToRawLabel(): void
+    #[Test]
+    public function translateExceptionsFallBackToRawLabel(): void
     {
-        // v13 raises on v14 domain syntax; ensure rendering never fails.
-        $resolver = $this->makeResolver(static function (string $key): ?string {
-            throw new \InvalidArgumentException('unknown extension');
+        $resolver = $this->createResolver(static function (string $key): string {
+            throw new \InvalidArgumentException('unknown extension', 1760438400);
         });
 
         self::assertSame('my_ext.tab:label', $resolver->resolveTranslation('my_ext.tab:label'));
     }
 
-    public function testLllKeyReturnsTranslation(): void
+    #[Test]
+    public function lllKeyReturnsTranslation(): void
     {
-        $resolver = $this->makeResolver(static fn(string $key): ?string => match ($key) {
+        $resolver = $this->createResolver(static fn(string $key): string => match ($key) {
             'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:tab.label' => 'Translated Label',
-            default => null,
+            default => '',
         });
 
         self::assertSame(
@@ -62,13 +78,84 @@ final class LabelResolverTest extends LabelResolverTestCase
         );
     }
 
-    public function testMissingTranslationFallsBackToRawLabel(): void
+    #[Test]
+    public function missingTranslationFallsBackToRawLabel(): void
     {
-        $nullResolver = $this->makeResolver(static fn(string $key): ?string => null);
-        $emptyResolver = $this->makeResolver(static fn(string $key): string => '');
+        $resolver = $this->createResolver(static fn(string $key): string => '');
 
         $key = 'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:missing';
-        self::assertSame($key, $nullResolver->resolveTranslation($key));
-        self::assertSame($key, $emptyResolver->resolveTranslation($key));
+        self::assertSame($key, $resolver->resolveTranslation($key));
+    }
+
+    #[Test]
+    public function labelWithoutExtensionKeyIsTranslatableFallback(): void
+    {
+        self::assertSame(
+            'LLL:EXT:page_info_tabs/Resources/Private/Language/locallang.xlf:tab.fallback',
+            $this->createResolver()->resolveLabel(null),
+        );
+    }
+
+    #[Test]
+    public function configuredLabelIsUsed(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['news'] = 'Latest news';
+
+        self::assertSame('Latest news', $this->createResolver()->resolveLabel('news'));
+    }
+
+    #[Test]
+    public function invalidConfiguredLabelFallsBackToExtensionKey(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['view_tracker'] = ['not', 'a', 'string'];
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['blog'] = 42;
+
+        $resolver = $this->createResolver();
+
+        self::assertSame('View Tracker', $resolver->resolveLabel('view_tracker'));
+        self::assertSame('Blog', $resolver->resolveLabel('blog'));
+    }
+
+    #[Test]
+    public function brokenConfigurationIsIgnored(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels'] = 'broken';
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities'] = 'broken';
+
+        $resolver = $this->createResolver();
+
+        self::assertSame('News', $resolver->resolveLabel('news'));
+        self::assertSame(50, $resolver->resolvePriority('news', 50));
+    }
+
+    #[Test]
+    public function priorityAcceptsNumericValuesOnly(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities'] = [
+            'news' => '10',
+            'blog' => 'first',
+            'view_tracker' => 20,
+        ];
+
+        $resolver = $this->createResolver();
+
+        self::assertSame(10, $resolver->resolvePriority('news', 50));
+        self::assertSame(50, $resolver->resolvePriority('blog', 50));
+        self::assertSame(20, $resolver->resolvePriority('view_tracker', 50));
+        self::assertSame(50, $resolver->resolvePriority(null, 50));
+    }
+
+    /**
+     * @param (callable(string): string)|null $translator
+     */
+    private function createResolver(?callable $translator = null): LabelResolver
+    {
+        $languageService = self::createStub(LanguageService::class);
+        $languageService->method('sL')->willReturnCallback($translator ?? static fn(string $key): string => '');
+
+        $languageServiceFactory = self::createStub(LanguageServiceFactory::class);
+        $languageServiceFactory->method('createFromUserPreferences')->willReturn($languageService);
+
+        return new LabelResolver(self::createStub(PackageManager::class), $languageServiceFactory);
     }
 }

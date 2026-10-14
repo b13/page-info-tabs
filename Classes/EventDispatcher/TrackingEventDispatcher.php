@@ -35,8 +35,10 @@ final class TrackingEventDispatcher implements EventDispatcherInterface
     public function __construct(
         private readonly EventDispatcherInterface $inner,
         private readonly ListenerProviderInterface $listenerProvider,
+        // Lazy: the dispatcher is built while ext_localconf.php files are loaded,
+        // these services either depend on the dispatcher or must not exist that early
+        #[Autowire(lazy: true)]
         private readonly LabelResolver $labelResolver,
-        // Lazy: both depend on the event dispatcher themselves
         #[Autowire(lazy: true)]
         private readonly PageRenderer $pageRenderer,
         #[Autowire(lazy: true)]

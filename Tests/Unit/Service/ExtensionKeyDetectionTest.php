@@ -16,6 +16,7 @@ use B13\PageInfoTabs\Service\LabelResolver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Package\PackageManager;
 
 final class ExtensionKeyDetectionTest extends TestCase
@@ -70,6 +71,6 @@ final class ExtensionKeyDetectionTest extends TestCase
         $packageManager->method('isPackageActive')->willReturnCallback(
             static fn(string $key): bool => in_array($key, self::ACTIVE_EXTENSIONS, true),
         );
-        return new LabelResolver($packageManager);
+        return new LabelResolver($packageManager, self::createStub(LanguageServiceFactory::class));
     }
 }

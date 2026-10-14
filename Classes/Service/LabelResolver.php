@@ -12,14 +12,22 @@ declare(strict_types=1);
 
 namespace B13\PageInfoTabs\Service;
 
+use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
+/**
+ * Not final: the event dispatcher decorator gets it as a lazy proxy, as the
+ * language service factory must not be built during ext_localconf.php loading.
+ */
 class LabelResolver
 {
+    private const FALLBACK_LABEL = 'LLL:EXT:page_info_tabs/Resources/Private/Language/locallang.xlf:tab.fallback';
+
     public function __construct(
         private readonly PackageManager $packageManager,
+        private readonly LanguageServiceFactory $languageServiceFactory,
     ) {}
 
     /**
@@ -107,18 +115,18 @@ class LabelResolver
 
     public function resolveLabel(?string $extensionKey): string
     {
-        $labels = $this->getConfig()['labels'] ?? [];
-        if ($extensionKey !== null && isset($labels[$extensionKey])) {
-            return $labels[$extensionKey];
+        if ($extensionKey === null) {
+            return self::FALLBACK_LABEL;
         }
-        if ($extensionKey !== null) {
-            return ucwords(str_replace('_', ' ', $extensionKey));
+        $label = $this->getConfig('labels')[$extensionKey] ?? null;
+        if (is_string($label) && $label !== '') {
+            return $label;
         }
-        return 'Info';
+        return ucwords(str_replace('_', ' ', $extensionKey));
     }
 
     /**
-     * Translate label references via Extbase's LocalizationUtility.
+     * Translate label references with the language of the backend user.
      * Recognises both the legacy `LLL:EXT:.../locallang.xlf:key` syntax and the
      * v14+ translation-domain syntax `package.resource:identifier`. Plain strings
      * pass through unchanged; missing translations fall back to the raw label so
@@ -132,15 +140,18 @@ class LabelResolver
         try {
             $translated = $this->translate($label);
         } catch (\Throwable) {
-            // v13 doesn't understand v14 domain syntax, and bad keys can throw — never fail rendering.
+            // A broken label reference must never break the page module.
             return $label;
         }
-        return ($translated === null || $translated === '') ? $label : $translated;
+        return $translated === '' ? $label : $translated;
     }
 
-    protected function translate(string $key): ?string
+    private function translate(string $key): string
     {
-        return LocalizationUtility::translate($key);
+        $backendUser = $GLOBALS['BE_USER'] ?? null;
+        return $this->languageServiceFactory
+            ->createFromUserPreferences($backendUser instanceof AbstractUserAuthentication ? $backendUser : null)
+            ->sL($key);
     }
 
     /**
@@ -158,19 +169,18 @@ class LabelResolver
 
     public function resolvePriority(?string $extensionKey, int $default): int
     {
-        $priorities = $this->getConfig()['priorities'] ?? [];
-        if ($extensionKey !== null && isset($priorities[$extensionKey])) {
-            return (int)$priorities[$extensionKey];
-        }
-        return $default;
+        $priority = $extensionKey !== null ? ($this->getConfig('priorities')[$extensionKey] ?? null) : null;
+        return is_numeric($priority) ? (int)$priority : $default;
     }
 
     /**
      * Read config at call time so ext_localconf.php values are available.
-     * @return array<string, mixed>
+     *
+     * @return array<array-key, mixed>
      */
-    private function getConfig(): array
+    private function getConfig(string $key): array
     {
-        return $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs'] ?? [];
+        $config = $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs'][$key] ?? [];
+        return is_array($config) ? $config : [];
     }
 }

@@ -49,10 +49,15 @@ Default labels are provided for known extensions. To customise or add
 labels, set them in your `ext_localconf.php` or `config/system/additional.php`:
 
 ```php
-$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['view_tracker'] = 'Page Views';
-$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['blog'] = 'Blog';
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['my_extension'] = 'My Label';
+$GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['labels']['other_extension'] = 'LLL:EXT:my_sitepackage/Resources/Private/Language/locallang.xlf:tab.other';
 ```
+
+Labels accept plain strings and translation references, translated into
+the language of the backend user. Values that are not strings are ignored.
+Tabs without a configured label are named after the extension key
+(`my_extension` → "My Extension"), tabs without a detected key are labeled
+"Info".
 
 Priorities (tab ordering) can be configured the same way:
 
@@ -61,7 +66,7 @@ $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['view_
 $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['page_info_tabs']['priorities']['blog'] = 10;
 ```
 
-Lower priority = leftmost tab.
+Lower priority = leftmost tab. Non-numeric values are ignored.
 
 ## Finding the Extension Key
 
