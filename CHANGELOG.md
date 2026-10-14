@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **The tab bar is rendered with the current request.** Fluid view helpers
+  that need a request now work in the template, and the extension no longer
+  depends on internal TYPO3 APIs for rendering and listener lookup.
 - **Supported versions are TYPO3 13.4 LTS and 14.3 LTS.** The composer
   constraints no longer allow TYPO3 13.0–13.3, which lack APIs the extension
   relies on.
@@ -30,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explicit sections replace auto-captured content reliably.** An explicit
   identifier written with dashes (`my-extension`) now matches the detected
   extension key (`my_extension`), so the content no longer shows up twice.
+- **Listeners that rearrange the header content are handled.** Content that
+  a listener prepends becomes its own tab instead of duplicating the earlier
+  tabs, and a listener that replaces or clears the content is respected.
 
 ### Documentation
 - **README covers development and output escaping.** It points to

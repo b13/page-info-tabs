@@ -6,9 +6,11 @@ services:
 
   B13\PageInfoTabs\:
     resource: ../Classes/*
-    exclude: ../Classes/{Event,EventListener,Model}/*
+    exclude: ../Classes/{Event,Model}/*
 
   B13\PageInfoTabs\EventDispatcher\TrackingEventDispatcher:
     decorates: Psr\EventDispatcher\EventDispatcherInterface
     arguments:
       $inner: '@.inner'
+      # The core registers its listener provider without an alias for the PSR interface
+      $listenerProvider: '@TYPO3\CMS\Core\EventDispatcher\ListenerProvider'
